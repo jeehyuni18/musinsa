@@ -1,0 +1,7 @@
+package com.musinsa.homework.global;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class EmptyResultVo {
+}
