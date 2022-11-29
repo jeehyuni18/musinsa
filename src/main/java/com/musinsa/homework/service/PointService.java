@@ -24,21 +24,21 @@ import static com.musinsa.homework.enumClass.Point.*;
 public class PointService {
 
     private final PointRepository pointRepository;
+    private static String MAX_PERSON_MESSAGE = "금일 선착순 이벤트가 마감되었습니다. 내일 다시 시도해주세요";
+    private static String ALREADY_PAID_MESSAGE = "오늘 포인트가 이미 지급되었습니다. 내일 다시 시도해주세요";
 
     /**
      * 포인트를 지급 요청
      *
      */
-    public void addPoint(PointRequest pointRequest){
+    public String addPoint(PointRequest pointRequest){
         // step 1. 오늘 10명 마감되었을 경우 튕겨낸다.
         if( pointRepository.countAllByRegDate(pointRequest.getRegDate()) > 10) {
-            log.info("금일 선착순 이벤트가 마감되었습니다. 내일 다시 시도해주세요");
-            throw new PointHistoryException("금일 선착순 이벤트가 마감되었습니다. 내일 다시 시도해주세요");
+            return MAX_PERSON_MESSAGE;
         }
         // step 1. 오늘 이미 지급된 사용자일 경우 튕겨낸다.
         if(Objects.nonNull(this.todayPointHistoryUser(pointRequest.getUserSeq()))){
-            log.info("오늘은 이미 지급되었습니다. 내일 다시 시도해주세요");
-            throw new PointHistoryException("오늘은 이미 지급되었습니다. 내일 다시 시도해주세요");
+            return ALREADY_PAID_MESSAGE;
         } else {
             // step 3. userSeq 로 최근 10일자 포인트 지급 이력을 가져온다.
             List<PointHistory> userHistories = this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_10DAYS.getDays());
@@ -46,14 +46,19 @@ public class PointService {
             if (!CollectionUtils.isEmpty(userHistories) ) {
                 if(userHistories.size() == POINT_10DAYS.getDays()) {
                     this.savePoint(pointRequest, POINT_10DAYS);
+                    return POINT_10DAYS.getPointDescription();
                 } else if(this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_5DAYS.getDays()).size() == POINT_5DAYS.getDays()) {
                     this.savePoint(pointRequest, POINT_5DAYS);
+                    return POINT_5DAYS.getPointDescription();
                 } else if(this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_3DAYS.getDays()).size() == POINT_3DAYS.getPoint()) {
                     this.savePoint(pointRequest, POINT_3DAYS);
+                    return POINT_3DAYS.getPointDescription();
                 } else
                     this.savePoint(pointRequest, POINT_1DAY);
+                return POINT_1DAY.getPointDescription();
             } else
                 this.savePoint(pointRequest, Point.POINT_1DAY);
+            return POINT_1DAY.getPointDescription();
         }
 
     }

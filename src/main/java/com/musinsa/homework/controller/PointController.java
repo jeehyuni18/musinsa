@@ -32,8 +32,7 @@ public class PointController {
     // 포인트 지급
     @PostMapping("/add")
     public ResponseFormat addPoint(@RequestBody PointRequest pointRequest) {
-        pointService.addPoint(pointRequest);
-        return new ResponseFormat();
+        return new ResponseFormat(pointService.addPoint(pointRequest));
     }
 
 
