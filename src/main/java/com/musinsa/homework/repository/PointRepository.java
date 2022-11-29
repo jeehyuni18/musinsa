@@ -8,14 +8,18 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PointRepository extends JpaRepository<PointHistory, Long> {
-    List<PointHistory> findAllByRegDateIsBeforeOrderByPointSeq(LocalDateTime regDate);
 
-    Long countByUserSeq(Long userSeq);
+    List<PointHistory> findAllByRegDateOrderByPointSeqDesc(LocalDate regDate);
+    List<PointHistory> findAllByRegDateOrderByPointSeq(LocalDate regDate);
 
-    Long countAllByRegDateAndUserSeq(LocalDate regDate, Long userSeq);
+    Integer countAllByRegDate(LocalDate regDate);
 
+    List<PointHistory> findAllByRegDateBetweenAndUserSeq(LocalDate agoDate, LocalDate today, Long userSeq);
+
+    PointHistory findByRegDateAndUserSeq(LocalDate date, Long userSeq);
 
 }

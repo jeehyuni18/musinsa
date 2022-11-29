@@ -16,15 +16,20 @@ public class PointController {
     private final PointService pointService;
 
 
-    @GetMapping("/{pointSeq}")
+    // pointSeq 로 이력 상세조회
+    @GetMapping("/detail/{pointSeq}")
     public ResponseFormat pointHistoryDetail(@PathVariable Long pointSeq) {
         return new ResponseFormat(pointService.findPointHistory(pointSeq));
     }
+
+    // 날짜 기준 포인트 지급 이력
     @GetMapping("/list/{date}")
-    public ResponseFormat pointHistoryList(@PathVariable String date) {
-        return new ResponseFormat(pointService.findPointHistoryAll(date));
+    public ResponseFormat pointHistoryList(@PathVariable String date, @RequestParam String order) {
+        return new ResponseFormat(pointService.findPointHistoryAll(date, order));
     }
 
+
+    // 포인트 지급
     @PostMapping("/add")
     public ResponseFormat addPoint(@RequestBody PointRequest pointRequest) {
         pointService.addPoint(pointRequest);
