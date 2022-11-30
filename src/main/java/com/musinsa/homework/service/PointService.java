@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -109,7 +110,7 @@ public class PointService {
         LocalDate searchDate = Utils.convertLocalDate(date);
         if(Objects.isNull(searchDate)) throw new PointHistoryException("요청 파라미터 값을 확인해주세요.( 형식 : YYYYMMDD)");
         List<PointHistory> pointHistories;
-        if(order.equals("desc")) {
+        if( Objects.isNull(order) || order.equals("desc") ) {
             pointHistories = pointRepository.findAllByRegDateOrderByPointSeqDesc(searchDate);
         } else pointHistories = pointRepository.findAllByRegDateOrderByPointSeq(searchDate);
 
