@@ -10,7 +10,7 @@
 
 - gradle : liberica 1.8 ver 설치
 - ./gradlew
--
+- open jdk 19 
 - homeworkApplication 실행
 
 
