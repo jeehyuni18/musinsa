@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -24,6 +25,7 @@ import static com.musinsa.homework.enumClass.Point.*;
 @Slf4j
 @Service(value = "PointService")
 @RequiredArgsConstructor
+@Transactional
 public class PointService {
 
     private final PointRepository pointRepository;
@@ -38,6 +40,7 @@ public class PointService {
      * 포인트 지급을 요청
      *
      */
+    @Transactional
     public String addPoint(PointRequest pointRequest) {
         // step 1. 오늘 10명 마감되었을 경우 튕겨낸다.
         if (pointRepository.countAllByRegDate(pointRequest.getRegDate()) >= 10) {
