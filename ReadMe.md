@@ -8,9 +8,9 @@
 
 ### 실행 방법
 
-- jdk 및 gradle 설치<br/>
-  (sudo apt install openjdk-11-jre-headless)<br/>
-   (sudo apt install gradle)
+- gradle : liberica 1.8 ver 설치
+- ./gradlew
+-
 - homeworkApplication 실행
 
 
@@ -120,6 +120,16 @@
     JPA
     hibernate
     MySQL
+
+
+### 개발환경
+```
+IDE : IntelliJ IDEA Ultimate
+OS : Mac OS X
+SpringBoot 1.5.9
+Java11
+Gradle
+```
 <br/><br/>
 
 
