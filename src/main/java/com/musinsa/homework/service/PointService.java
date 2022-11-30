@@ -3,6 +3,8 @@ package com.musinsa.homework.service;
 import com.musinsa.homework.dto.PointRequest;
 import com.musinsa.homework.enumClass.Point;
 import com.musinsa.homework.model.PointHistory;
+import com.musinsa.homework.model.UserEventCompleteLog;
+import com.musinsa.homework.repository.UserEventCompleteLogRepository;
 import com.musinsa.homework.util.Utils;
 import com.musinsa.homework.exception.PointHistoryException;
 import com.musinsa.homework.repository.PointRepository;
@@ -24,36 +26,60 @@ import static com.musinsa.homework.enumClass.Point.*;
 public class PointService {
 
     private final PointRepository pointRepository;
+
+    private final UserEventCompleteLogRepository userCompleteRepository;
     private static String MAX_PERSON_MESSAGE = "금일 선착순 이벤트가 마감되었습니다. 내일 다시 시도해주세요";
     private static String ALREADY_PAID_MESSAGE = "오늘 포인트가 이미 지급되었습니다. 내일 다시 시도해주세요";
 
+
+
     /**
-     * 포인트를 지급 요청
+     * 포인트 지급을 요청
      *
      */
     public String addPoint(PointRequest pointRequest) {
         // step 1. 오늘 10명 마감되었을 경우 튕겨낸다.
-        if (pointRepository.countAllByRegDate(pointRequest.getRegDate()) > 10) {
+        if (pointRepository.countAllByRegDate(pointRequest.getRegDate()) >= 10) {
             return MAX_PERSON_MESSAGE;
         }
         // step 2. 오늘 이미 지급된 사용자일 경우 튕겨낸다.
         if (Objects.nonNull(this.todayPointHistoryUser(pointRequest.getUserSeq(), pointRequest.getRegDate()))) {
             return ALREADY_PAID_MESSAGE;
-            // step 3. 최근 10일치 데이터를 가져와 각 조건에 따라 포인트 지급
+            // step 3. 최근 10일치 또는 10일치 보상 이후 데이터를 가져와 각 조건에 따라 포인트 지급
         } else {
-            List<PointHistory> userHistories = this.lateDaysUserHistory(pointRequest, POINT_10DAYS.getDays());
+            List<PointHistory> userHistories = this.baseDateUserHistory(pointRequest, POINT_10DAYS.getDays());
             if (CollectionUtils.isEmpty(userHistories)) {
                 this.savePoint(pointRequest, POINT_1DAY);
                 return POINT_1DAY.getPointDescription();
-            } else if (userHistories.size() >= POINT_1DAY.getDays() && userHistories.size() <= POINT_3DAYS.getDays() -1 ) {
+            } else if (isBefore3Level(userHistories)) { // 3일 연속 이전까지
                 return this.validPointLevel(userHistories, pointRequest, POINT_3DAYS).getPointDescription();
-            } else if (userHistories.size() > POINT_3DAYS.getDays() && userHistories.size() <= POINT_5DAYS.getDays() -1 ) {
+            } else if (isBefore5Level(userHistories)) { // 5일 연속 이전까지
                 return this.validPointLevel(userHistories, pointRequest, POINT_5DAYS).getPointDescription();
-            } else if (userHistories.size() > POINT_5DAYS.getDays() && userHistories.size() <= POINT_10DAYS.getDays() -1 ) {
+            } else if (isBefore10Level(userHistories)) { // 10일 연속 이전까지
                 return this.validPointLevel(userHistories, pointRequest, POINT_10DAYS).getPointDescription();
             }
         }
         return null;
+    }
+
+    // 3일 연속 이전까지
+    private boolean isBefore3Level(List<PointHistory> userHistories) {
+        return userHistories.size() >= POINT_1DAY.getDays() && userHistories.size() <= POINT_3DAYS.getDays() -1;
+    }
+    // 5일 연속 이전까지
+    private boolean isBefore5Level(List<PointHistory> userHistories) {
+        return userHistories.size() >= POINT_3DAYS.getDays() && userHistories.size() <= POINT_5DAYS.getDays() -1;
+    }
+
+    // 10일 연속 이전까지
+    private boolean isBefore10Level(List<PointHistory> userHistories){
+       return userHistories.size() >= POINT_5DAYS.getDays() && userHistories.size() <= POINT_10DAYS.getDays() -1;
+    }
+
+    // 10일 연속 포인트 보상을 지급 받은 이력이 있는지 체크
+    private UserEventCompleteLog checkUserCompleteEvent(Long userSeq) {
+       UserEventCompleteLog userCompleted = userCompleteRepository.findFirstByUserSeqOrderByLastEventCompleteDateDesc(userSeq);
+       return Objects.nonNull(userCompleted) ? userCompleted : null;
     }
 
 
@@ -63,6 +89,8 @@ public class PointService {
             return POINT_1DAY;
         } else if(userHistories.size() == point.getDays() - 1) {
             this.savePoint(pointRequest, point);
+            // 10일 연속 보상 이면 지급 이력 저장
+            if(point.equals(POINT_10DAYS)) this.saveUserEventCompleteLog(pointRequest);
         }
         return point;
     }
@@ -94,10 +122,15 @@ public class PointService {
         return pointRepository.findByRegDateAndUserSeq(date, userSeq);
     }
 
-    // 사용자의 최근 10일 포인트 이력
-    private List<PointHistory> lateDaysUserHistory(PointRequest pointRequest, int days) {
-        return pointRepository.findAllByRegDateBetweenAndUserSeq
-                (pointRequest.getRegDate().minusDays(days), pointRequest.getRegDate(), pointRequest.getUserSeq());
+    // 사용자의 최근 10일 또는 10일치 보상 이후 시점 포인트 이력
+    private List<PointHistory> baseDateUserHistory(PointRequest pointRequest, int days) {
+        UserEventCompleteLog userCompleteEvent = this.checkUserCompleteEvent(pointRequest.getUserSeq());
+        LocalDate baseDate;
+        if(Objects.isNull(userCompleteEvent))
+            baseDate = pointRequest.getRegDate().minusDays(days);
+        else
+            baseDate = userCompleteEvent.getLastEventCompleteDate();
+        return pointRepository.findAllByRegDateBetweenAndUserSeq(baseDate, pointRequest.getRegDate(), pointRequest.getUserSeq());
     }
 
     // 포인트 이력 저장
@@ -117,6 +150,14 @@ public class PointService {
                     .point(point.getPoint() + POINT_1DAY.getPoint())
                     .build());
 
+    }
+
+    // 10일 연속 포인트 지급 보상 날짜 저장
+    private void saveUserEventCompleteLog(PointRequest pointRequest){
+        userCompleteRepository.save(UserEventCompleteLog.builder()
+                .userSeq(pointRequest.getUserSeq())
+                .lastEventCompleteDate(pointRequest.getRegDate())
+                .build());
     }
 
 }

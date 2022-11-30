@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-public class userEventCompleteLog {
+public class UserEventCompleteLog {
 
     @Id
     @GeneratedValue
