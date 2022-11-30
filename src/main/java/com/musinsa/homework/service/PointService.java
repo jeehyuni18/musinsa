@@ -31,37 +31,43 @@ public class PointService {
      * 포인트를 지급 요청
      *
      */
-    public String addPoint(PointRequest pointRequest){
+    public String addPoint(PointRequest pointRequest) {
         // step 1. 오늘 10명 마감되었을 경우 튕겨낸다.
-        if( pointRepository.countAllByRegDate(pointRequest.getRegDate()) > 10) {
+        if (pointRepository.countAllByRegDate(pointRequest.getRegDate()) > 10) {
             return MAX_PERSON_MESSAGE;
         }
-        // step 1. 오늘 이미 지급된 사용자일 경우 튕겨낸다.
-        if(Objects.nonNull(this.todayPointHistoryUser(pointRequest.getUserSeq()))){
+        // step 2. 오늘 이미 지급된 사용자일 경우 튕겨낸다.
+        if (Objects.nonNull(this.todayPointHistoryUser(pointRequest.getUserSeq(), pointRequest.getRegDate()))) {
             return ALREADY_PAID_MESSAGE;
+            // step 3. 최근 10일치 데이터를 가져와 각 조건에 따라 포인트 지급
         } else {
-            // step 3. userSeq 로 최근 10일자 포인트 지급 이력을 가져온다.
-            List<PointHistory> userHistories = this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_10DAYS.getDays());
-            // step 4. 있을 경우 각 조건에 따라 차등 지급
-            if (!CollectionUtils.isEmpty(userHistories) ) {
-                if(userHistories.size() == POINT_10DAYS.getDays()) {
-                    this.savePoint(pointRequest, POINT_10DAYS);
-                    return POINT_10DAYS.getPointDescription();
-                } else if(this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_5DAYS.getDays()).size() == POINT_5DAYS.getDays()) {
-                    this.savePoint(pointRequest, POINT_5DAYS);
-                    return POINT_5DAYS.getPointDescription();
-                } else if(this.lateDaysUserHistory(pointRequest.getUserSeq(), POINT_3DAYS.getDays()).size() == POINT_3DAYS.getPoint()) {
-                    this.savePoint(pointRequest, POINT_3DAYS);
-                    return POINT_3DAYS.getPointDescription();
-                } else
-                    this.savePoint(pointRequest, POINT_1DAY);
+            List<PointHistory> userHistories = this.lateDaysUserHistory(pointRequest, POINT_10DAYS.getDays());
+            if (CollectionUtils.isEmpty(userHistories)) {
+                this.savePoint(pointRequest, POINT_1DAY);
                 return POINT_1DAY.getPointDescription();
-            } else
-                this.savePoint(pointRequest, Point.POINT_1DAY);
-            return POINT_1DAY.getPointDescription();
+            } else if (userHistories.size() >= POINT_1DAY.getDays() && userHistories.size() <= POINT_3DAYS.getDays() -1 ) {
+                return this.validPointLevel(userHistories, pointRequest, POINT_3DAYS).getPointDescription();
+            } else if (userHistories.size() > POINT_3DAYS.getDays() && userHistories.size() <= POINT_5DAYS.getDays() -1 ) {
+                return this.validPointLevel(userHistories, pointRequest, POINT_5DAYS).getPointDescription();
+            } else if (userHistories.size() > POINT_5DAYS.getDays() && userHistories.size() <= POINT_10DAYS.getDays() -1 ) {
+                return this.validPointLevel(userHistories, pointRequest, POINT_10DAYS).getPointDescription();
+            }
         }
-
+        return null;
     }
+
+
+    private Point validPointLevel(List<PointHistory> userHistories, PointRequest pointRequest, Point point){
+        if (userHistories.size() < point.getDays() - 1) {
+            this.savePoint(pointRequest, POINT_1DAY);
+            return POINT_1DAY;
+        } else if(userHistories.size() == point.getDays() - 1) {
+            this.savePoint(pointRequest, point);
+        }
+        return point;
+    }
+
+
 
     // pointSeq로 상세 조회
     public Optional<PointHistory> findPointHistory(Long pointSeq){
@@ -83,25 +89,34 @@ public class PointService {
         return pointHistories;
     }
 
-    // 사용자 오늘 포인트 이력
-    private PointHistory todayPointHistoryUser(Long userSeq) {
-        return pointRepository.findByRegDateAndUserSeq(LocalDate.now(), userSeq);
+    // 사용자 오늘 포인트 이력 (파라미터 date 값이 없을 때 오늘 날짜)
+    private PointHistory todayPointHistoryUser(Long userSeq, LocalDate date) {
+        return pointRepository.findByRegDateAndUserSeq(date, userSeq);
     }
 
     // 사용자의 최근 10일 포인트 이력
-    private List<PointHistory> lateDaysUserHistory(Long userSeq, int days) {
+    private List<PointHistory> lateDaysUserHistory(PointRequest pointRequest, int days) {
         return pointRepository.findAllByRegDateBetweenAndUserSeq
-                (LocalDate.now().minusDays(days), LocalDate.now(),userSeq);
+                (pointRequest.getRegDate().minusDays(days), pointRequest.getRegDate(), pointRequest.getUserSeq());
     }
 
     // 포인트 이력 저장
     private void savePoint(PointRequest pointRequest, Point point) {
-        pointRepository.save(PointHistory.builder()
-                .userSeq(pointRequest.getUserSeq())
-                .regDate(Objects.nonNull(pointRequest.getRegDate()) ? pointRequest.getRegDate() : LocalDate.now())
-                .pointLevel(point.getDays())
-                .point(point.getPoint())
-                .build());
+        if(point.equals(POINT_1DAY)) {
+            pointRepository.save(PointHistory.builder()
+                    .userSeq(pointRequest.getUserSeq())
+                    .regDate(pointRequest.getRegDate())
+                    .pointLevel(point.getDays())
+                    .point(point.getPoint())
+                    .build());
+        } else
+            pointRepository.save(PointHistory.builder()
+                    .userSeq(pointRequest.getUserSeq())
+                    .regDate(pointRequest.getRegDate())
+                    .pointLevel(point.getDays())
+                    .point(point.getPoint() + POINT_1DAY.getPoint())
+                    .build());
+
     }
 
 }

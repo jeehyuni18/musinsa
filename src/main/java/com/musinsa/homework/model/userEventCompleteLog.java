@@ -1,29 +1,26 @@
 package com.musinsa.homework.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import javax.persistence.*;
 import java.time.LocalDate;
 
 @Data
 @Entity
-@Table(name = "point_history")
+@Table(name = "user_event_complete_log")
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-public class PointHistory {
+public class userEventCompleteLog {
 
     @Id
     @GeneratedValue
     @Column(nullable = false)
-    private Long pointSeq;
-
-    @Column(nullable = false)
-    private Integer pointLevel;
-
-
-    @Column(nullable = false)
-    private Integer point;
+    private Long completeLogSeq;
 
     @Column(nullable = false)
     private Long userSeq;
@@ -31,7 +28,7 @@ public class PointHistory {
 
     @Column(nullable = false)
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
-    private LocalDate regDate;
+    private LocalDate lastEventCompleteDate;
 
-
+    
 }
